@@ -90,12 +90,19 @@ end
 [mse_min_pred,index_pred] = min(mse_pred_val,[],'linear');
 [mse_min_sim,index_sim] = min(mse_sim_val,[],'linear');
 
-% we notice that the minimum MSEs are obtained for both prediction and
-% simulation at the same index, thus for the same values of na, nb, m
-% therefore, from now on we consider a single model as the best choice
+% if the minimum MSEs are obtained for both prediction and simulation at
+% the same index (thus for the same values of na, nb, m), a single model
+% will be considered the best choice; if this is not the case, there will
+% be two different final models (one for prediction and one for simulation)
+
+% we can observe that in this particular case, the best choice of the model
+% is the same for both prediction and simulation; but that is not always
+% the case and that is why we will continue with 2 separate variables for
+% the best model for prediction and simulation
 
 % getting the values of na, nb, m from the matrix of their combinations
-best_model = na_nb_m_comb(index_pred,:);
+best_model_pred = na_nb_m_comb(index_pred,:);
+best_model_sim = na_nb_m_comb(index_sim,:);
 
 %% Graphical and tabular representations of the MSEs
 % 2D plot of the values of the MSEs on identification
@@ -165,7 +172,8 @@ uit2.ColumnName = {'na','nb','m','MSE prediction (val)','MSE simulation (val)'};
 
 %% Final model and results
 % retrieving the na, nb, m which give the best results
-na = best_model(1); nb = best_model(2); m = best_model(3);
+na_pred = best_model_pred(1); nb_pred = best_model_pred(2); m_pred = best_model_pred(3);
+na_sim = best_model_sim(1); nb_sim = best_model_sim(2); m_sim = best_model_sim(3);
 % for the final results check we will also consider time delay
 nk = 1:3;
 
@@ -173,13 +181,16 @@ i = 1;
 MSE_pred_id = zeros(1,length(nk)); MSE_sim_id = zeros(1,length(nk));
 MSE_pred_val = zeros(1,length(nk)); MSE_sim_val = zeros(1,length(nk));
 for j = nk
-    % obtaining the approximation of the identification output for both 
-    % simulation and prediction
-    d_id = delayed_io(Nid,uid,yid,na,nb,j);
-    phi_id = regressor(m,d_id);
-    theta = phi_id\yid;
-    y_pred_id = phi_id*theta;
-    y_sim_id = simulation(Nid,na,nb,j,m,uid,theta);
+    % obtaining the approximation of the identification output for prediction
+    d_id_pred = delayed_io(Nid,uid,yid,na_pred,nb_pred,j);
+    phi_id_pred = regressor(m_pred,d_id_pred);
+    theta_pred = phi_id_pred\yid;
+    y_pred_id = phi_id_pred*theta_pred;
+    % obtaining the approximation of the identification output for simulation
+    d_id_sim = delayed_io(Nid,uid,yid,na_sim,nb_sim,j);
+    phi_id_sim = regressor(m_sim,d_id_sim);
+    theta_sim = phi_id_sim\yid;
+    y_sim_id = simulation(Nid,na_sim,nb_sim,j,m_sim,uid,theta_sim);
     % computing the one-step-ahead prediction errors for the identification dataset
     MSE_pred_id(i) = 1/Nid*sum((y_pred_id-yid).^2);
     % computing the simulation errors for the identification dataset
@@ -193,12 +204,13 @@ for j = nk
     title({'Comparison between the identification output and the corresponding',...
         ['predicted and simulated outputs, nk=' num2str(j)]})
     
-    % obtaining the approximation of the validation output for both 
-    % simulation and prediction
-    d_val = delayed_io(Nval,uval,yval,na,nb,j);
-    phi_val = regressor(m,d_val);
-    y_pred_val = phi_val*theta;
-    y_sim_val = simulation(Nval,na,nb,j,m,uval,theta);
+    % obtaining the approximation of the validation output for prediction
+    d_val_pred = delayed_io(Nval,uval,yval,na_pred,nb_pred,j);
+    phi_val_pred = regressor(m_pred,d_val_pred);
+    y_pred_val = phi_val_pred*theta_pred;
+    % obtaining the approximation of the validation output for simulation
+    d_val_sim = delayed_io(Nval,uval,yval,na_sim,nb_sim,j);
+    y_sim_val = simulation(Nval,na_sim,nb_sim,j,m_sim,uval,theta_sim);
     % computing the one-step-ahead prediction errors for the validation dataset
     MSE_pred_val(i) = 1/Nval*sum((y_pred_val-yval).^2);
     % computing the simulation errors for the validation dataset
